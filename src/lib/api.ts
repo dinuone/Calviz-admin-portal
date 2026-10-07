@@ -14,7 +14,7 @@ import {
 import { validateFileMagicBytes } from "@/lib/fileValidation";
 import { optimizeImageForUpload } from "@/lib/imageOptimizer";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5089/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
 
 function getAuthHeader(): Record<string, string> {
   if (typeof window === "undefined") return {};
