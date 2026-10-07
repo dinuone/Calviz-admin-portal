@@ -75,7 +75,12 @@ export default function ProductsPage() {
   const filtered = products.filter(
     (p) =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.categoryName?.toLowerCase().includes(searchQuery.toLowerCase())
+      p.categoryName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.categories?.some(
+        (c) =>
+          c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          c.slug.toLowerCase().includes(searchQuery.toLowerCase())
+      )
   );
 
   return (
@@ -202,15 +207,31 @@ export default function ProductsPage() {
                 {/* Details */}
                 <CardContent className="p-5 flex-1 flex flex-col justify-between space-y-4">
                   <div>
-                    <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono uppercase">{prod.categoryName || "Uncategorized"}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono" title={`Alert triggered when variant stock is ≤ ${threshold}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-slate-400 mb-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {prod.categories && prod.categories.length > 0 ? (
+                          prod.categories.map((c) => (
+                            <span
+                              key={c.id}
+                              className="font-mono uppercase text-[10px] px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-300 font-semibold"
+                            >
+                              {c.name}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="font-mono uppercase text-[10px] px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-400">
+                            {prod.categoryName || "Uncategorized"}
+                          </span>
+                        )}
+                        <span
+                          className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-500 font-mono"
+                          title={`Alert triggered when variant stock is ≤ ${threshold}`}
+                        >
                           Alert ≤ {threshold}
                         </span>
                       </div>
                       {prod.isFeatured && (
-                        <span className="text-[10px] text-amber-400 font-mono">★ Featured</span>
+                        <span className="text-[10px] text-amber-400 font-mono shrink-0">★ Featured</span>
                       )}
                     </div>
                     <h3 className="text-base font-semibold text-white group-hover:text-slate-200 transition-colors">

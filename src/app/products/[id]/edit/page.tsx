@@ -103,7 +103,7 @@ export default function EditProductPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [color, setColor] = useState("Vintage Black");
-  const [categoryId, setCategoryId] = useState("");
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [basePrice, setBasePrice] = useState<number | "">("");
   const [gsm, setGsm] = useState<number | "">("");
@@ -145,7 +145,19 @@ export default function EditProductPage() {
         // Prepopulate form fields
         setName(product.name || "");
         setSlug(product.slug || "");
-        setCategoryId(product.categoryId || (catList?.[0]?.id ?? ""));
+
+        const initialCatIds: string[] = [];
+        if (product.categoryIds && product.categoryIds.length > 0) {
+          initialCatIds.push(...product.categoryIds);
+        } else if (product.categories && product.categories.length > 0) {
+          initialCatIds.push(...product.categories.map((c) => c.id));
+        } else if (product.categoryId) {
+          initialCatIds.push(product.categoryId);
+        } else if (catList && catList.length > 0) {
+          initialCatIds.push(catList[0].id);
+        }
+        setSelectedCategoryIds(Array.from(new Set(initialCatIds)));
+
         setDescription(product.description || "");
         setBasePrice(product.basePrice ?? "");
         setGsm(product.gsm ?? 240);
@@ -287,6 +299,25 @@ export default function EditProductPage() {
     }
   };
 
+  const toggleCategory = (id: string) => {
+    setSelectedCategoryIds((prev) => {
+      if (prev.includes(id)) {
+        if (prev.length === 1) return prev; // Keep at least one selected
+        return prev.filter((item) => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  const setAsPrimaryCategory = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedCategoryIds((prev) => {
+      const remaining = prev.filter((item) => item !== id);
+      return [id, ...remaining];
+    });
+  };
+
   const handleVariantStockChange = (index: number, stock: number) => {
     setVariants((prev) => {
       const next = [...prev];
@@ -394,8 +425,8 @@ export default function EditProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !basePrice) {
-      setError("Please complete all required fields: Name and Base Price.");
+    if (!name.trim() || selectedCategoryIds.length === 0 || !basePrice) {
+      setError("Please complete all required fields: Name, Collections/Categories, and Base Price.");
       return;
     }
 
@@ -450,7 +481,8 @@ export default function EditProductPage() {
 
       const payload: UpdateProductInput = {
         id: productId,
-        categoryId: categoryId || categories[0]?.id || "cat-default",
+        categoryId: selectedCategoryIds[0] || categories[0]?.id || "cat-default",
+        categoryIds: selectedCategoryIds,
         name: name.trim(),
         slug: resolvedSlug,
         description: description.trim(),
@@ -605,20 +637,83 @@ export default function EditProductPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="category">Collection / Category *</Label>
-                <select
-                  id="category"
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full h-9 px-3 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-slate-500"
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+              {/* MULTI-CATEGORY / COLLECTION SELECTOR */}
+              <div className="md:col-span-2 space-y-3 pt-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-white">
+                      Collections / Categories *
+                    </Label>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                      {selectedCategoryIds.length} Selected
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Click to toggle • First tag is Primary
+                  </span>
+                </div>
+
+                {categories.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-amber-400 text-xs font-mono">
+                    No categories found.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {categories.map((c) => {
+                      const isSelected = selectedCategoryIds.includes(c.id);
+                      const isPrimary = selectedCategoryIds[0] === c.id;
+
+                      return (
+                        <div
+                          key={c.id}
+                          onClick={() => toggleCategory(c.id)}
+                          className={`p-3 rounded-xl border text-xs transition-all cursor-pointer flex items-center justify-between gap-2 select-none ${
+                            isSelected
+                              ? "bg-slate-900/90 border-white/40 text-white shadow-sm ring-1 ring-white/10"
+                              : "bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div
+                              className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${
+                                isSelected
+                                  ? "bg-white border-white text-slate-950"
+                                  : "border-slate-700 bg-slate-900"
+                              }`}
+                            >
+                              {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                            </div>
+                            <div className="truncate">
+                              <span className="font-semibold block truncate text-xs">{c.name}</span>
+                              <span className="text-[10px] font-mono text-slate-500 block truncate">
+                                /{c.slug}
+                              </span>
+                            </div>
+                          </div>
+
+                          {isSelected && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              {isPrimary ? (
+                                <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
+                                  Primary
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(e) => setAsPrimaryCategory(c.id, e)}
+                                  className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                                  title="Make this the primary category"
+                                >
+                                  Make Primary
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

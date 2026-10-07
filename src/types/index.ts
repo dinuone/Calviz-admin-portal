@@ -49,7 +49,9 @@ export interface SizeMeasurementRow {
 export interface Product {
   id: string;
   categoryId?: string;
+  categoryIds?: string[];
   categoryName?: string;
+  categories?: { id: string; name: string; slug: string }[];
   name: string;
   slug: string;
   description?: string;
@@ -68,6 +70,7 @@ export interface Product {
 export interface ProductSummary {
   id: string;
   categoryId?: string;
+  categoryIds?: string[];
   name: string;
   slug: string;
   description?: string;
@@ -77,6 +80,7 @@ export interface ProductSummary {
   isFeatured: boolean;
   categoryName?: string;
   categorySlug?: string;
+  categories?: { id: string; name: string; slug: string }[];
   primaryImageUrl?: string;
   availableSizes?: string[];
   availableColors?: string[];
@@ -168,7 +172,8 @@ export interface CreateProductImageInput {
 }
 
 export interface CreateProductInput {
-  categoryId: string;
+  categoryId?: string;
+  categoryIds?: string[];
   name: string;
   slug: string;
   description?: string;
@@ -217,7 +222,8 @@ export interface UpdateProductImageInput {
 
 export interface UpdateProductInput {
   id: string;
-  categoryId: string;
+  categoryId?: string;
+  categoryIds?: string[];
   name: string;
   slug: string;
   description?: string;
@@ -309,6 +315,18 @@ export interface UpdateCityInput {
   estimatedDeliveryDays?: string | null;
   isActive: boolean;
   displayOrder: number;
+}
+
+export interface DeliveryEstimatesSummary {
+  colomboEstimate: string;
+  outstationEstimate: string;
+  colomboCount: number;
+  outstationCount: number;
+}
+
+export interface UpdateDeliveryEstimatesInput {
+  colomboEstimate: string;
+  outstationEstimate: string;
 }
 
 export interface AdminReview {

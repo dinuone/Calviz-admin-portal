@@ -655,6 +655,39 @@ export async function quickUpdateAdminCityFee(
   return await res.json();
 }
 
+export async function fetchAdminDeliveryEstimates(): Promise<import("@/types").DeliveryEstimatesSummary> {
+  const res = await fetch(`${API_BASE_URL}/cities/delivery-estimates`, {
+    headers: getAuthHeader(),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to load delivery estimates (${res.status})`);
+  }
+
+  return await res.json();
+}
+
+export async function updateAdminDeliveryEstimates(
+  input: import("@/types").UpdateDeliveryEstimatesInput
+): Promise<{ success: boolean; message: string; colomboCount: number; outstationCount: number; colomboEstimate: string; outstationEstimate: string }> {
+  const res = await fetch(`${API_BASE_URL}/cities/delivery-estimates`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || `Failed to update delivery estimates (${res.status})`);
+  }
+
+  return await res.json();
+}
+
 // ---------------------------------------------------------------------------
 // REVIEWS MANAGEMENT API
 // ---------------------------------------------------------------------------
@@ -1099,6 +1132,151 @@ export async function deleteAdminSizeChart(id: string): Promise<void> {
     throw new Error(errText || `Failed to delete size chart (${res.status})`);
   }
 }
+
+// ----------------------------------------------------
+// 12. CUSTOMER INQUIRIES & REQUESTS
+// ----------------------------------------------------
+export interface CustomerInquiry {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  inquiryType: string;
+  message: string;
+  status: "Pending" | "Contacted" | "Resolved" | "Spam";
+  adminNotes?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  isBotSuspected: boolean;
+  createdAtUtc: string;
+  resolvedAtUtc?: string;
+}
+
+export interface InquiriesPagedResult {
+  items: CustomerInquiry[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  pendingCount: number;
+  contactedCount: number;
+  resolvedCount: number;
+  spamCount: number;
+}
+
+export interface InquiryFilters {
+  status?: string;
+  inquiryType?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export async function fetchAdminInquiries(filters: InquiryFilters = {}): Promise<InquiriesPagedResult> {
+  const params = new URLSearchParams();
+  if (filters.status && filters.status !== "All") params.append("status", filters.status);
+  if (filters.inquiryType && filters.inquiryType !== "All") params.append("inquiryType", filters.inquiryType);
+  if (filters.search) params.append("search", filters.search);
+  if (filters.page) params.append("page", filters.page.toString());
+  if (filters.pageSize) params.append("pageSize", filters.pageSize.toString());
+
+  const res = await fetch(`${API_BASE_URL}/inquiries?${params.toString()}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || `Failed to fetch inquiries (${res.status})`);
+  }
+
+  return await res.json();
+}
+
+export async function updateAdminInquiryStatus(
+  id: string,
+  payload: { status?: string; adminNotes?: string }
+): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/inquiries/${id}/status`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || `Failed to update inquiry status (${res.status})`);
+  }
+}
+
+export async function deleteAdminInquiry(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/inquiries/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || `Failed to delete inquiry (${res.status})`);
+  }
+}
+
+// ----------------------------------------------------
+// 13. SITE MODE & MAINTENANCE / COMING SOON SETTINGS
+// ----------------------------------------------------
+export interface SiteModeSettings {
+  mode: "LIVE" | "MAINTENANCE" | "COMING_SOON";
+  headline: string;
+  message: string;
+  targetDateUtc?: string;
+  enableVipSignup: boolean;
+  adminBypassKey: string;
+  supportPhone?: string;
+  updatedAtUtc: string;
+}
+
+export async function fetchAdminSiteMode(): Promise<SiteModeSettings> {
+  const res = await fetch(`${API_BASE_URL}/sitemode`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(),
+    },
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || `Failed to fetch site mode settings (${res.status})`);
+  }
+
+  return await res.json();
+}
+
+export async function updateAdminSiteMode(payload: Partial<SiteModeSettings>): Promise<SiteModeSettings> {
+  const res = await fetch(`${API_BASE_URL}/sitemode`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || `Failed to update site mode settings (${res.status})`);
+  }
+
+  return await res.json();
+}
+
+
 
 
 

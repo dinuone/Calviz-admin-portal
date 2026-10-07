@@ -24,7 +24,7 @@ import {
   Ruler,
 } from "lucide-react";
 import { isAdminAuthenticated, getAdminUser, removeAdminToken } from "@/lib/auth";
-import { fetchAdminOrders } from "@/lib/api";
+import { fetchAdminOrders, fetchAdminInquiries } from "@/lib/api";
 import { OrderStatus } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ interface AdminShellProps {
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Orders", href: "/orders", icon: ShoppingBag },
+  { label: "Customer Requests", href: "/inquiries", icon: MessageSquare },
   { label: "Products", href: "/products", icon: Package },
   { label: "Size Charts", href: "/size-charts", icon: Ruler },
   { label: "Offers & Banners", href: "/banners", icon: Sparkles },
@@ -55,6 +56,7 @@ export default function AdminShell({ children }: AdminShellProps) {
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [mounted, setMounted] = useState(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState<number>(0);
+  const [pendingInquiriesCount, setPendingInquiriesCount] = useState<number>(0);
 
   const isLoginPage = pathname === "/login";
 
@@ -69,25 +71,34 @@ export default function AdminShell({ children }: AdminShellProps) {
     }
   }, [pathname, isLoginPage, router]);
 
-  // Poll for new pending orders
+  // Poll for new pending orders & inquiries
   useEffect(() => {
     if (isLoginPage) return;
 
     let isMounted = true;
-    async function checkPendingOrders() {
+    async function checkPendingData() {
       try {
-        const res = await fetchAdminOrders({ orderStatus: "Pending" });
-        if (isMounted && res) {
-          const count = res.totalCount ?? res.items?.length ?? 0;
-          setPendingOrdersCount(count);
+        const [ordersRes, inquiriesRes] = await Promise.allSettled([
+          fetchAdminOrders({ orderStatus: "Pending" }),
+          fetchAdminInquiries({ status: "Pending" }),
+        ]);
+
+        if (isMounted) {
+          if (ordersRes.status === "fulfilled" && ordersRes.value) {
+            const count = ordersRes.value.totalCount ?? ordersRes.value.items?.length ?? 0;
+            setPendingOrdersCount(count);
+          }
+          if (inquiriesRes.status === "fulfilled" && inquiriesRes.value) {
+            setPendingInquiriesCount(inquiriesRes.value.pendingCount ?? inquiriesRes.value.totalCount ?? 0);
+          }
         }
       } catch (e) {
         // Silently handle if unauthenticated or offline
       }
     }
 
-    checkPendingOrders();
-    const interval = setInterval(checkPendingOrders, 15000);
+    checkPendingData();
+    const interval = setInterval(checkPendingData, 15000);
 
     return () => {
       isMounted = false;
@@ -174,6 +185,12 @@ export default function AdminShell({ children }: AdminShellProps) {
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black font-mono bg-red-600 text-white shadow-sm flex items-center gap-1 animate-pulse">
                     <span className="w-1.5 h-1.5 rounded-full bg-white inline-block animate-ping" />
                     {pendingOrdersCount} NEW
+                  </span>
+                )}
+
+                {item.href === "/inquiries" && pendingInquiriesCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black font-mono bg-amber-500 text-black shadow-sm flex items-center gap-1">
+                    {pendingInquiriesCount} NEW
                   </span>
                 )}
               </Link>

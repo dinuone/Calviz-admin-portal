@@ -927,101 +927,6 @@ export default function BannersPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Left Column: Form Controls */}
             <div className="lg:col-span-7 space-y-6">
-              {/* Typography & Copy Deck */}
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-5">
-                <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-                  <Type className="w-4 h-4 text-indigo-400" />
-                  <h2 className="text-sm font-bold uppercase font-mono tracking-wider text-white">
-                    Typography &amp; Headline Copy
-                  </h2>
-                </div>
-
-                {/* Sub-badge & Location */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">
-                      Micro Badge Text
-                    </label>
-                    <input
-                      type="text"
-                      value={heroConfig.badgeText}
-                      onChange={(e) => setHeroConfig({ ...heroConfig, badgeText: e.target.value })}
-                      placeholder="e.g. CAPSULE DROP 01"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:border-indigo-500 focus:outline-hidden font-mono"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">
-                      Location / Coordinates
-                    </label>
-                    <input
-                      type="text"
-                      value={heroConfig.locationText}
-                      onChange={(e) => setHeroConfig({ ...heroConfig, locationText: e.target.value })}
-                      placeholder="e.g. COLOMBO 6.9271° N, 79.8612° E"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:border-indigo-500 focus:outline-hidden font-mono"
-                    />
-                  </div>
-                </div>
-
-                {/* 3-Line Monumental Title */}
-                <div className="space-y-3 pt-2">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">
-                      Title Line 1 (Uppercase Geometric)
-                    </label>
-                    <input
-                      type="text"
-                      value={heroConfig.titleLine1}
-                      onChange={(e) => setHeroConfig({ ...heroConfig, titleLine1: e.target.value })}
-                      placeholder="e.g. ARCHITECTURAL"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-bold uppercase focus:border-indigo-500 focus:outline-hidden"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">
-                      Title Line 2 (Italic Serif Lowercase)
-                    </label>
-                    <input
-                      type="text"
-                      value={heroConfig.titleLine2}
-                      onChange={(e) => setHeroConfig({ ...heroConfig, titleLine2: e.target.value })}
-                      placeholder="e.g. silhouette."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-indigo-300 italic focus:border-indigo-500 focus:outline-hidden"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">
-                      Title Line 3 (Edition Sub-Weight)
-                    </label>
-                    <input
-                      type="text"
-                      value={heroConfig.titleLine3}
-                      onChange={(e) => setHeroConfig({ ...heroConfig, titleLine3: e.target.value })}
-                      placeholder="e.g. HEAVYWEIGHT WEAVE."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-bold uppercase focus:border-indigo-500 focus:outline-hidden"
-                    />
-                  </div>
-                </div>
-
-                {/* Brand Story / Description */}
-                <div className="space-y-1.5 pt-2">
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">
-                    Brand Story / Subtitle Description
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={heroConfig.description}
-                    onChange={(e) => setHeroConfig({ ...heroConfig, description: e.target.value })}
-                    placeholder="Structured boxy proportions cut from custom-milled..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:border-indigo-500 focus:outline-hidden resize-none"
-                  />
-                </div>
-              </div>
-
               {/* Action Buttons & Links */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-5">
                 <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
@@ -1335,13 +1240,10 @@ export default function BannersPage() {
 
                     <div>
                       <h4 className="text-lg font-black uppercase text-white leading-none">
-                        {heroConfig.titleLine1}
+                        BOLD FIT.
                       </h4>
-                      <h4 className="text-lg font-serif italic text-neutral-400 leading-none">
-                        {heroConfig.titleLine2}
-                      </h4>
-                      <h4 className="text-lg font-black uppercase text-neutral-200 leading-none">
-                        {heroConfig.titleLine3}
+                      <h4 className="text-lg font-black uppercase text-neutral-400 leading-none">
+                        EFFORTLESS STYLE.
                       </h4>
                     </div>
 
