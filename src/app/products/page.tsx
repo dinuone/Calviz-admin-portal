@@ -246,11 +246,21 @@ export default function ProductsPage() {
                           Alert ≤ {threshold}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {prod.isOnSale && prod.salePrice && (
                           <span className="text-[10px] text-red-400 font-mono font-bold px-2 py-0.5 rounded bg-red-950/60 border border-red-800/80 shrink-0 flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                             ON SALE
+                          </span>
+                        )}
+                        {prod.isNewArrival && (
+                          <span className="text-[10px] text-sky-300 font-mono font-bold px-2 py-0.5 rounded bg-sky-950/60 border border-sky-800/80 shrink-0 flex items-center gap-1">
+                            ✨ NEW DROP
+                          </span>
+                        )}
+                        {prod.isBestSeller && (
+                          <span className="text-[10px] text-amber-300 font-mono font-bold px-2 py-0.5 rounded bg-amber-950/60 border border-amber-800/80 shrink-0 flex items-center gap-1">
+                            🔥 BEST SELLER
                           </span>
                         )}
                         {prod.isFeatured && (

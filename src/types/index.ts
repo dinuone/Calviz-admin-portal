@@ -58,6 +58,8 @@ export interface Product {
   basePrice: number;
   isOnSale?: boolean;
   salePrice?: number | null;
+  isNewArrival?: boolean;
+  isBestSeller?: boolean;
   gsm?: number;
   lowStockThreshold?: number;
   isFeatured: boolean;
@@ -79,6 +81,8 @@ export interface ProductSummary {
   basePrice: number;
   isOnSale?: boolean;
   salePrice?: number | null;
+  isNewArrival?: boolean;
+  isBestSeller?: boolean;
   gsm?: number;
   lowStockThreshold?: number;
   isFeatured: boolean;
@@ -184,6 +188,8 @@ export interface CreateProductInput {
   basePrice: number;
   isOnSale?: boolean;
   salePrice?: number | null;
+  isNewArrival?: boolean;
+  isBestSeller?: boolean;
   gsm?: number;
   lowStockThreshold?: number;
   isFeatured: boolean;
@@ -236,6 +242,8 @@ export interface UpdateProductInput {
   basePrice: number;
   isOnSale?: boolean;
   salePrice?: number | null;
+  isNewArrival?: boolean;
+  isBestSeller?: boolean;
   gsm: number;
   lowStockThreshold?: number;
   isFeatured: boolean;

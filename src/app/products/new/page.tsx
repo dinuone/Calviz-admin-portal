@@ -92,6 +92,8 @@ export default function NewProductPage() {
   const [basePrice, setBasePrice] = useState<number | "">("");
   const [isOnSale, setIsOnSale] = useState(false);
   const [salePrice, setSalePrice] = useState<number | "">("");
+  const [isNewArrival, setIsNewArrival] = useState(false);
+  const [isBestSeller, setIsBestSeller] = useState(false);
   const [gsm, setGsm] = useState<number | "">("");
   const [lowStockThreshold, setLowStockThreshold] = useState<number | "">(5);
   const [isFeatured, setIsFeatured] = useState(false);
@@ -427,6 +429,8 @@ export default function NewProductPage() {
         basePrice: Number(basePrice),
         isOnSale,
         salePrice: isOnSale && salePrice ? Number(salePrice) : null,
+        isNewArrival,
+        isBestSeller,
         gsm: gsm ? Number(gsm) : 240,
         lowStockThreshold: lowStockThreshold !== "" ? Number(lowStockThreshold) : 5,
         isFeatured,
@@ -685,6 +689,67 @@ export default function NewProductPage() {
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* Homepage Sections Curation: New Arrivals & Best Selling */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 1. New Arrivals Toggle */}
+                <div className={`p-4 rounded-xl border transition-all ${isNewArrival ? "bg-cyan-950/20 border-cyan-700/60" : "bg-slate-900/60 border-slate-800"}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="newArrivalToggle" className="text-sm font-semibold text-slate-100 cursor-pointer">
+                          New Arrivals (New Drop)
+                        </Label>
+                        <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                          Home Section
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Include in &quot;New Arrivals (New Drops)&quot; section on the home page.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        id="newArrivalToggle"
+                        type="checkbox"
+                        checked={isNewArrival}
+                        onChange={(e) => setIsNewArrival(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 2. Best Selling Toggle */}
+                <div className={`p-4 rounded-xl border transition-all ${isBestSeller ? "bg-amber-950/20 border-amber-700/60" : "bg-slate-900/60 border-slate-800"}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="bestSellerToggle" className="text-sm font-semibold text-slate-100 cursor-pointer">
+                          Best Selling Item
+                        </Label>
+                        <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          Home Section
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Include in &quot;Best Selling&quot; section on the home page.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        id="bestSellerToggle"
+                        type="checkbox"
+                        checked={isBestSeller}
+                        onChange={(e) => setIsBestSeller(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
