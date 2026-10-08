@@ -49,7 +49,7 @@ export default function DashboardPage() {
         fetchAdminReviews({ status: "pending", pageSize: 20 }).catch(() => ({ items: [] })),
       ]);
       setOrders(orderRes.items || []);
-      setProducts(productRes || []);
+      setProducts(productRes.items || []);
       setPendingReviews(reviewsRes.items || []);
     } catch (err) {
       console.error("Dashboard data load error:", err);

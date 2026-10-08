@@ -56,6 +56,8 @@ export interface Product {
   slug: string;
   description?: string;
   basePrice: number;
+  isOnSale?: boolean;
+  salePrice?: number | null;
   gsm?: number;
   lowStockThreshold?: number;
   isFeatured: boolean;
@@ -75,6 +77,8 @@ export interface ProductSummary {
   slug: string;
   description?: string;
   basePrice: number;
+  isOnSale?: boolean;
+  salePrice?: number | null;
   gsm?: number;
   lowStockThreshold?: number;
   isFeatured: boolean;
@@ -178,6 +182,8 @@ export interface CreateProductInput {
   slug: string;
   description?: string;
   basePrice: number;
+  isOnSale?: boolean;
+  salePrice?: number | null;
   gsm?: number;
   lowStockThreshold?: number;
   isFeatured: boolean;
@@ -228,6 +234,8 @@ export interface UpdateProductInput {
   slug: string;
   description?: string;
   basePrice: number;
+  isOnSale?: boolean;
+  salePrice?: number | null;
   gsm: number;
   lowStockThreshold?: number;
   isFeatured: boolean;

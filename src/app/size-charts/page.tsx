@@ -114,7 +114,7 @@ export default function SizeChartsPage() {
         fetchAdminProducts(),
       ]);
       setSizeCharts(Array.isArray(chartsData) ? chartsData : []);
-      setProducts(Array.isArray(productsData) ? productsData : []);
+      setProducts(Array.isArray(productsData) ? productsData : productsData?.items || []);
     } catch (err: any) {
       setError(err.message || "Failed to load size charts and product list.");
     } finally {
@@ -846,7 +846,7 @@ export default function SizeChartsPage() {
                     {editingChart ? `Edit: ${editingChart.name}` : "Create Size Chart & Matrix"}
                   </h3>
                   <p className="text-xs text-slate-400 font-mono">
-                    CALVIZ Atelier Silhouette Specification System
+                    CALVIZ Sizing & Silhouette Guide
                   </p>
                 </div>
               </div>

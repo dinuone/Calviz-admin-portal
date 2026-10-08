@@ -27,11 +27,18 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { DataTablePagination } from "@/components/DataTablePagination";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Pagination state
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Delete modal state
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -39,11 +46,19 @@ export default function ProductsPage() {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const loadProducts = async () => {
+  const loadProducts = async (page = pageNumber, size = pageSize) => {
     try {
       setLoading(true);
-      const data = await fetchAdminProducts();
-      setProducts(data || []);
+      const data = await fetchAdminProducts({
+        search: searchQuery.trim() || undefined,
+        pageNumber: page,
+        pageSize: size,
+      });
+      setProducts((data.items as any) || []);
+      setTotalCount(data.totalCount);
+      setTotalPages(data.totalPages);
+      setPageNumber(data.pageNumber);
+      setPageSize(size);
     } catch (err) {
       console.error("Failed to load products:", err);
     } finally {
@@ -52,8 +67,17 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    loadProducts(pageNumber, pageSize);
+  }, [pageNumber, pageSize]);
+
+  // Debounced search reset to page 1
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setPageNumber(1);
+      loadProducts(1, pageSize);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   const handleDeleteConfirm = async () => {
     if (!productToDelete) return;
@@ -62,6 +86,7 @@ export default function ProductsPage() {
       setActionError(null);
       await deleteAdminProduct(productToDelete.id);
       setProducts((prev) => prev.filter((p) => p.id !== productToDelete.id));
+      setTotalCount((prev) => Math.max(0, prev - 1));
       setActionSuccess(`"${productToDelete.name}" has been deleted successfully.`);
       setProductToDelete(null);
     } catch (err: unknown) {
@@ -72,16 +97,7 @@ export default function ProductsPage() {
     }
   };
 
-  const filtered = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.categoryName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.categories?.some(
-        (c) =>
-          c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          c.slug.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-  );
+  const filtered = products;
 
   return (
     <div className="space-y-6">
@@ -99,7 +115,7 @@ export default function ProductsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={loadProducts}
+            onClick={() => loadProducts()}
             disabled={loading}
           >
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
@@ -230,9 +246,17 @@ export default function ProductsPage() {
                           Alert ≤ {threshold}
                         </span>
                       </div>
-                      {prod.isFeatured && (
-                        <span className="text-[10px] text-amber-400 font-mono shrink-0">★ Featured</span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {prod.isOnSale && prod.salePrice && (
+                          <span className="text-[10px] text-red-400 font-mono font-bold px-2 py-0.5 rounded bg-red-950/60 border border-red-800/80 shrink-0 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            ON SALE
+                          </span>
+                        )}
+                        {prod.isFeatured && (
+                          <span className="text-[10px] text-amber-400 font-mono shrink-0">★ Featured</span>
+                        )}
+                      </div>
                     </div>
                     <h3 className="text-base font-semibold text-white group-hover:text-slate-200 transition-colors">
                       {prod.name}
@@ -279,12 +303,30 @@ export default function ProductsPage() {
                   <div className="pt-3 border-t border-slate-800/80 space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] uppercase font-mono text-slate-500 block">
-                          Base Price
-                        </span>
-                        <span className="text-sm font-bold font-mono text-white">
-                          LKR {prod.basePrice.toLocaleString()}
-                        </span>
+                        {prod.isOnSale && prod.salePrice ? (
+                          <>
+                            <span className="text-[10px] uppercase font-mono text-red-400 font-bold block">
+                              Sale Price (-{Math.round(((prod.basePrice - prod.salePrice) / prod.basePrice) * 100)}%)
+                            </span>
+                            <div className="flex items-center gap-1.5 font-mono">
+                              <span className="text-sm font-bold text-red-400">
+                                LKR {prod.salePrice.toLocaleString()}
+                              </span>
+                              <span className="text-xs text-slate-500 line-through">
+                                LKR {prod.basePrice.toLocaleString()}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[10px] uppercase font-mono text-slate-500 block">
+                              Base Price
+                            </span>
+                            <span className="text-sm font-bold font-mono text-white">
+                              LKR {prod.basePrice.toLocaleString()}
+                            </span>
+                          </>
+                        )}
                       </div>
                       <a
                         href={`http://localhost:3000/product/${prod.slug}`}
@@ -321,6 +363,22 @@ export default function ProductsPage() {
           })
         )}
       </div>
+
+      <DataTablePagination
+        pageNumber={pageNumber}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        totalPages={totalPages}
+        onPageChange={(newPage) => setPageNumber(newPage)}
+        onPageSizeChange={(newPageSize) => {
+          setPageSize(newPageSize);
+          setPageNumber(1);
+        }}
+        pageSizeOptions={[12, 24, 48, 96]}
+        itemLabel="products"
+        loading={loading}
+        className="rounded-2xl border border-slate-800"
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>

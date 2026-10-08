@@ -214,11 +214,50 @@ export async function deleteAdminCategory(id: string): Promise<boolean> {
   return true;
 }
 
-export async function fetchAdminProducts(category?: string, search?: string): Promise<ProductSummary[]> {
+export interface AdminProductFilters {
+  category?: string;
+  search?: string;
+  sortBy?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+export interface AdminProductsPagedResult {
+  items: ProductSummary[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export async function fetchAdminProducts(
+  filtersOrCategory?: AdminProductFilters | string,
+  searchArg?: string
+): Promise<AdminProductsPagedResult> {
   const url = new URL(`${API_BASE_URL}/products`);
+  let category: string | undefined;
+  let search: string | undefined;
+  let sortBy: string | undefined;
+  let pageNumber = 1;
+  let pageSize = 20;
+
+  if (typeof filtersOrCategory === "object" && filtersOrCategory !== null) {
+    category = filtersOrCategory.category;
+    search = filtersOrCategory.search;
+    sortBy = filtersOrCategory.sortBy;
+    if (filtersOrCategory.pageNumber) pageNumber = filtersOrCategory.pageNumber;
+    if (filtersOrCategory.pageSize !== undefined) pageSize = filtersOrCategory.pageSize;
+  } else if (typeof filtersOrCategory === "string") {
+    category = filtersOrCategory;
+    search = searchArg;
+    pageSize = 100;
+  }
+
   if (category && category !== "all") url.searchParams.set("category", category);
   if (search) url.searchParams.set("search", search);
-  url.searchParams.set("pageSize", "100");
+  if (sortBy) url.searchParams.set("sortBy", sortBy);
+  url.searchParams.set("pageNumber", pageNumber.toString());
+  url.searchParams.set("pageSize", pageSize.toString());
 
   const res = await fetch(url.toString(), {
     cache: "no-store",
@@ -232,7 +271,23 @@ export async function fetchAdminProducts(category?: string, search?: string): Pr
   }
 
   const data = await res.json();
-  return data.items || (Array.isArray(data) ? data : []);
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      totalCount: data.length,
+      pageNumber: 1,
+      pageSize: data.length,
+      totalPages: 1,
+    };
+  }
+
+  return {
+    items: data.items || [],
+    totalCount: data.totalCount ?? (data.items ? data.items.length : 0),
+    pageNumber: data.pageNumber ?? pageNumber,
+    pageSize: data.pageSize ?? pageSize,
+    totalPages: data.totalPages ?? 1,
+  };
 }
 
 export async function fetchAdminProductByIdOrSlug(idOrSlug: string): Promise<Product> {
@@ -512,14 +567,53 @@ export async function deleteAdminBankDetail(id: string): Promise<void> {
 
 // ----------------------------------------------------
 // 7. DELIVERY CITIES MANAGEMENT
-// ----------------------------------------------------
+export interface AdminCityFilters {
+  search?: string;
+  district?: string;
+  status?: "all" | "active" | "inactive" | string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+export interface DeliveryCitiesPagedResult {
+  items: import("@/types").DeliveryCity[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  activeCount: number;
+  inactiveCount: number;
+  defaultDeliveryFee?: number | null;
+}
+
 export async function fetchAdminCities(
-  search?: string,
-  district?: string
-): Promise<import("@/types").DeliveryCity[]> {
+  filtersOrSearch?: AdminCityFilters | string,
+  districtArg?: string
+): Promise<DeliveryCitiesPagedResult> {
   const url = new URL(`${API_BASE_URL}/cities/admin`);
+  let search: string | undefined;
+  let district: string | undefined;
+  let status: string | undefined;
+  let pageNumber = 1;
+  let pageSize = 20;
+
+  if (typeof filtersOrSearch === "object" && filtersOrSearch !== null) {
+    search = filtersOrSearch.search;
+    district = filtersOrSearch.district;
+    status = filtersOrSearch.status;
+    if (filtersOrSearch.pageNumber) pageNumber = filtersOrSearch.pageNumber;
+    if (filtersOrSearch.pageSize !== undefined) pageSize = filtersOrSearch.pageSize;
+  } else if (typeof filtersOrSearch === "string") {
+    search = filtersOrSearch;
+    district = districtArg;
+    pageSize = 0; // Legacy call requesting all cities
+  }
+
   if (search) url.searchParams.set("search", search);
   if (district && district !== "all") url.searchParams.set("district", district);
+  if (status && status !== "all") url.searchParams.set("status", status);
+  url.searchParams.set("pageNumber", pageNumber.toString());
+  url.searchParams.set("pageSize", pageSize.toString());
 
   const res = await fetch(url.toString(), {
     headers: getAuthHeader(),
@@ -530,7 +624,29 @@ export async function fetchAdminCities(
     throw new Error(`Failed to load delivery cities (${res.status} ${res.statusText})`);
   }
 
-  return await res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      totalCount: data.length,
+      pageNumber: 1,
+      pageSize: data.length,
+      totalPages: 1,
+      activeCount: data.filter((c: any) => c.isActive).length,
+      inactiveCount: data.filter((c: any) => !c.isActive).length,
+    };
+  }
+
+  return {
+    items: data.items || [],
+    totalCount: data.totalCount ?? (data.items ? data.items.length : 0),
+    pageNumber: data.pageNumber ?? pageNumber,
+    pageSize: data.pageSize ?? pageSize,
+    totalPages: data.totalPages ?? 1,
+    activeCount: data.activeCount ?? 0,
+    inactiveCount: data.inactiveCount ?? 0,
+    defaultDeliveryFee: data.defaultDeliveryFee,
+  };
 }
 
 export async function createAdminCity(

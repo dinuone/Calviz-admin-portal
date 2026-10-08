@@ -127,22 +127,22 @@ const DEFAULT_OFFER_CARDS: OfferCard[] = [
 ];
 
 const DEFAULT_OFFERS_CONFIG: UpdateOffersSectionInput = {
-  tagline: "SEASONAL PRIVILEGES & CLIENT OFFERS",
-  title: "CURATED ATELIER OFFERS",
-  subtitle: "Exclusive wardrobe incentives, complimentary island-wide logistics, and doorstep assurance for the discerning client.",
-  noteBadge: "ALL OFFERS ACTIVE FOR DROP 01 ARCHIVE",
-  marqueeText: "✦ ARCHIVAL DUO BUNDLE: SAVE 10% ON 2+ TEES WITH CODE \"CALVIZ10\" ✦ FREE ISLAND-WIDE EXPRESS DISPATCH ON ORDERS OVER LKR 10,000 ✦ DOORSTEP DELIVERY WITHIN 24 HOURS ✦ 7-DAY EFFORTLESS SIZE EXCHANGES ✦ VIP EARLY ALLOCATION PASSES ACTIVE FOR DROP 02 ✦",
-  heroBadge: "CAPSULE BUNDLE PRIVILEGE",
-  heroTitle: "ARCHIVAL DUO BUNDLE: SAVE 10% ON 2+ TEES",
-  heroDescription: "Upgrade your daily rotation. Add any two or more heavyweight tees across Drop 01 to your cart and claim an instant 10% privilege discount.",
+  tagline: "SPECIAL DEALS & DISCOUNTS",
+  title: "SPECIAL OFFERS & DISCOUNTS",
+  subtitle: "Enjoy limited-time discounts, free island-wide delivery, and easy size exchanges on your favorite items.",
+  noteBadge: "ALL OFFERS ACTIVE NOW",
+  marqueeText: "✦ BUY 2+ TEES & SAVE 10% WITH CODE \"CALVIZ10\" ✦ FREE ISLAND-WIDE DELIVERY ON ORDERS OVER LKR 10,000 ✦ FAST DOORSTEP DELIVERY WITHIN 24-48 HOURS ✦ 7-DAY EASY SIZE EXCHANGES ✦",
+  heroBadge: "BUNDLE & SAVE",
+  heroTitle: "BUY 2+ TEES & GET 10% OFF",
+  heroDescription: "Upgrade your wardrobe. Add any two or more tees to your cart and apply discount code CALVIZ10 at checkout.",
   heroPromoCode: "CALVIZ10",
-  heroButtonText: "EXPLORE CAPSULE",
+  heroButtonText: "SHOP NOW",
   heroButtonUrl: "#catalog",
   heroImageUrl: "https://lh3.googleusercontent.com/aida/AEtjO1W2UlicQK-ALNnpCFI_VnuAFHutBsM5uozFpmtPjMXZsKgJaWhuXUp4SDT1tJNzteqkhaiH2znBpGa_yQ2sr3WBt_5huSnSvMcSV6thVGD_KhYlLUIVjIqtwj2g5iI8la0TFUIpcr1C06lWj9EtWpnFrZ06wCyOupxEFBXyjgGa-3zYp-HEWnXyUBhZqXtBhAWnLx6mdqBN9l2gOhTIPTpQU8-meqP0eOIh29qFsd0yU35In11zyiQ7kKk",
-  heroPerk1Title: "AUTOMATIC CART STACKING",
-  heroPerk1Description: "Stacks seamlessly with island-wide free dispatch on orders over LKR 10,000.",
-  heroPerk2Title: "ALL SIZES & CUTS ELIGIBLE",
-  heroPerk2Description: "Mix and match between Obsidian Black, Stark White & Graphic Editions.",
+  heroPerk1Title: "AUTOMATIC DISCOUNT",
+  heroPerk1Description: "Works together with free island-wide delivery on orders over LKR 10,000.",
+  heroPerk2Title: "ALL SIZES & COLORS ELIGIBLE",
+  heroPerk2Description: "Mix and match between Obsidian Black, Stark White & Graphic styles.",
   cardsJson: JSON.stringify(DEFAULT_OFFER_CARDS, null, 2),
   isActive: true,
 };
@@ -698,7 +698,7 @@ export default function BannersPage() {
     setEditingBanner(null);
     setFormData({
       title: "",
-      subtitle: "LOOKBOOK // COLOMBO ATELIER",
+      subtitle: "LOOKBOOK // COLOMBO",
       description: "",
       imageUrl: "",
       linkUrl: "/products",
@@ -1926,7 +1926,7 @@ export default function BannersPage() {
                   <div className="flex items-center gap-2">
                     <Eye className="w-4 h-4 text-amber-400" />
                     <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                      Live Storefront Atelier Preview
+                      Live Storefront Preview
                     </h3>
                   </div>
                   <Badge variant="outline" className="border-amber-500/40 text-amber-400 font-mono text-[10px]">
@@ -1940,10 +1940,10 @@ export default function BannersPage() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-neutral-400 font-bold">
                       <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></span>
-                      <span>{offersConfig.tagline || "SEASONAL PRIVILEGES"}</span>
+                      <span>{offersConfig.tagline || "SPECIAL DEALS & DISCOUNTS"}</span>
                     </div>
                     <h4 className="text-base font-extrabold uppercase text-white tracking-tight leading-tight">
-                      {offersConfig.title || "CURATED ATELIER OFFERS"}
+                      {offersConfig.title || "SPECIAL OFFERS & DISCOUNTS"}
                     </h4>
                     <p className="text-[10px] text-neutral-400 line-clamp-2">
                       {offersConfig.subtitle || "Exclusive wardrobe incentives..."}
@@ -2658,7 +2658,7 @@ export default function BannersPage() {
                     type="text"
                     value={formData.subtitle || ""}
                     onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                    placeholder="e.g. LOOKBOOK // COLOMBO ATELIER"
+                    placeholder="e.g. LOOKBOOK // COLOMBO"
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>

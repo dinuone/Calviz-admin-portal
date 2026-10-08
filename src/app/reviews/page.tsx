@@ -33,12 +33,19 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { DataTablePagination } from "@/components/DataTablePagination";
 
 export default function ReviewsPage() {
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved">("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Pagination state
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Action processing state
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -52,15 +59,20 @@ export default function ReviewsPage() {
   const [reviewToDelete, setReviewToDelete] = useState<AdminReview | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const loadReviews = async () => {
+  const loadReviews = async (page = pageNumber, size = pageSize) => {
     try {
       setLoading(true);
       const res = await fetchAdminReviews({
         status: statusFilter,
         search: searchQuery.trim() || undefined,
-        pageSize: 100,
+        pageNumber: page,
+        pageSize: size,
       });
       setReviews(res.items || []);
+      setTotalCount(res.totalCount);
+      setTotalPages(res.totalPages);
+      setPageNumber(res.pageNumber);
+      setPageSize(size);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load customer reviews";
       console.error(msg);
@@ -71,8 +83,17 @@ export default function ReviewsPage() {
   };
 
   useEffect(() => {
-    loadReviews();
-  }, [statusFilter]);
+    loadReviews(pageNumber, pageSize);
+  }, [pageNumber, pageSize, statusFilter]);
+
+  // Debounced search to reset pageNumber to 1
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setPageNumber(1);
+      loadReviews(1, pageSize);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,7 +158,7 @@ export default function ReviewsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={loadReviews} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={() => loadReviews()} disabled={loading}>
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
@@ -187,7 +208,10 @@ export default function ReviewsPage() {
           <Button
             variant="default"
             size="sm"
-            onClick={() => setStatusFilter("pending")}
+            onClick={() => {
+              setStatusFilter("pending");
+              setPageNumber(1);
+            }}
             className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold shrink-0"
           >
             Review Pending ({pendingCount})
@@ -201,18 +225,24 @@ export default function ReviewsPage() {
         <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-xl">
           <button
             type="button"
-            onClick={() => setStatusFilter("all")}
+            onClick={() => {
+              setStatusFilter("all");
+              setPageNumber(1);
+            }}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono uppercase transition-all cursor-pointer ${
               statusFilter === "all"
                 ? "bg-white text-slate-950 font-bold shadow-xs"
                 : "text-slate-400 hover:text-white"
             }`}
           >
-            All ({reviews.length})
+            All ({totalCount})
           </button>
           <button
             type="button"
-            onClick={() => setStatusFilter("pending")}
+            onClick={() => {
+              setStatusFilter("pending");
+              setPageNumber(1);
+            }}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono uppercase transition-all cursor-pointer flex items-center gap-1.5 ${
               statusFilter === "pending"
                 ? "bg-amber-400 text-slate-950 font-bold shadow-xs"
@@ -228,7 +258,10 @@ export default function ReviewsPage() {
           </button>
           <button
             type="button"
-            onClick={() => setStatusFilter("approved")}
+            onClick={() => {
+              setStatusFilter("approved");
+              setPageNumber(1);
+            }}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono uppercase transition-all cursor-pointer ${
               statusFilter === "approved"
                 ? "bg-emerald-500 text-slate-950 font-bold shadow-xs"
@@ -447,6 +480,22 @@ export default function ReviewsPage() {
           })
         )}
       </div>
+
+      <DataTablePagination
+        pageNumber={pageNumber}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        totalPages={totalPages}
+        onPageChange={(newPage) => setPageNumber(newPage)}
+        onPageSizeChange={(newPageSize) => {
+          setPageSize(newPageSize);
+          setPageNumber(1);
+        }}
+        pageSizeOptions={[10, 15, 25, 50]}
+        itemLabel="reviews"
+        loading={loading}
+        className="rounded-2xl border border-slate-800"
+      />
 
       {/* Photo Lightbox Modal */}
       <Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>

@@ -5,6 +5,7 @@ import {
   fetchAdminInquiries,
   updateAdminInquiryStatus,
   deleteAdminInquiry,
+  fetchAdminProductByIdOrSlug,
   CustomerInquiry,
   InquiriesPagedResult,
 } from "@/lib/api";
@@ -25,9 +26,85 @@ import {
   AlertTriangle,
   Send,
   Sparkles,
+  Bell,
+  Package,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DataTablePagination } from "@/components/DataTablePagination";
+
+export interface ParsedInquiryDetails {
+  isWaitlist: boolean;
+  productName?: string;
+  slug?: string;
+  size?: string;
+  color?: string;
+  imageUrl?: string;
+  customerName?: string;
+  phone?: string;
+  email?: string;
+}
+
+export function decodeHtmlEntities(str?: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+export function parseInquiryDetails(rawMessage?: string): ParsedInquiryDetails {
+  if (!rawMessage) return { isWaitlist: false };
+  const message = decodeHtmlEntities(rawMessage);
+
+  const isWaitlist = /restock waitlist/i.test(message) || /waitlist request/i.test(message);
+
+  const extract = (keys: string[]): string | undefined => {
+    for (const key of keys) {
+      const regex = new RegExp(`(?:^|\\|)\\s*${key}\\s*:\\s*([^|\\n]+)`, "i");
+      const match = message.match(regex);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+    return undefined;
+  };
+
+  const productName = extract(["Product", "Item"]);
+  const slug = extract(["SKU/Slug", "Slug", "SKU"]);
+  const size = extract(["Requested Size", "Size"]);
+  const color = extract(["Color", "Colorway"]);
+  const imageUrl = extract(["Image", "Product Image", "Image URL"]);
+  const customerName = extract(["Customer", "Client"]);
+  const phone = extract(["Contact Phone", "Phone"]);
+  const email = extract(["Email"]);
+
+  return {
+    isWaitlist,
+    productName,
+    slug,
+    size,
+    color,
+    imageUrl,
+    customerName,
+    phone,
+    email,
+  };
+}
+
+export function resolveProductImageUrl(url?: string | null): string {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/")) {
+    const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:5089";
+    return `${base}${url}`;
+  }
+  return url;
+}
 
 export default function InquiriesPage() {
   const [data, setData] = useState<InquiriesPagedResult | null>(null);
@@ -36,12 +113,18 @@ export default function InquiriesPage() {
   const [typeFilter, setTypeFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Selected for Modal Details
   const [selectedInquiry, setSelectedInquiry] = useState<CustomerInquiry | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [modalStatus, setModalStatus] = useState("");
   const [updating, setUpdating] = useState(false);
+
+  // Product cache & state for waitlist items (image & name)
+  const [productCache, setProductCache] = useState<Record<string, { image: string; name: string }>>({});
+  const [modalProduct, setModalProduct] = useState<{ image: string; name: string } | null>(null);
+  const [loadingModalProduct, setLoadingModalProduct] = useState(false);
 
   const loadInquiries = async () => {
     setLoading(true);
@@ -51,7 +134,7 @@ export default function InquiriesPage() {
         inquiryType: typeFilter,
         search,
         page,
-        pageSize: 20,
+        pageSize,
       });
       setData(res);
     } catch (err) {
@@ -63,7 +146,7 @@ export default function InquiriesPage() {
 
   useEffect(() => {
     loadInquiries();
-  }, [statusFilter, typeFilter, page]);
+  }, [statusFilter, typeFilter, page, pageSize]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,10 +191,83 @@ export default function InquiriesPage() {
     }
   };
 
-  const openDetails = (inquiry: CustomerInquiry) => {
+  // Background prefetch for waitlist products so table rows display instantly
+  useEffect(() => {
+    if (!data?.items) return;
+    const slugsToFetch: string[] = [];
+    for (const item of data.items) {
+      const parsed = parseInquiryDetails(item.message);
+      if (parsed.slug && !parsed.imageUrl && !productCache[parsed.slug] && !slugsToFetch.includes(parsed.slug)) {
+        slugsToFetch.push(parsed.slug);
+      }
+    }
+
+    if (slugsToFetch.length === 0) return;
+
+    slugsToFetch.forEach(async (slug) => {
+      try {
+        const prod = await fetchAdminProductByIdOrSlug(slug);
+        const img =
+          prod.images?.find((i: any) => i.isPrimary)?.imageUrl ||
+          prod.images?.[0]?.imageUrl ||
+          (prod as any).primaryImageUrl ||
+          "";
+        setProductCache((prev) => ({
+          ...prev,
+          [slug]: {
+            image: resolveProductImageUrl(img),
+            name: prod.name || "Product",
+          },
+        }));
+      } catch {
+        // silent fail on prefetch
+      }
+    });
+  }, [data]);
+
+  const openDetails = async (inquiry: CustomerInquiry) => {
     setSelectedInquiry(inquiry);
     setAdminNotes(inquiry.adminNotes || "");
     setModalStatus(inquiry.status);
+
+    const parsed = parseInquiryDetails(inquiry.message);
+    if (parsed.imageUrl) {
+      setModalProduct({
+        image: resolveProductImageUrl(parsed.imageUrl),
+        name: parsed.productName || "Product",
+      });
+      return;
+    }
+
+    if (parsed.slug) {
+      if (productCache[parsed.slug]) {
+        setModalProduct(productCache[parsed.slug]);
+        return;
+      }
+
+      setLoadingModalProduct(true);
+      try {
+        const prod = await fetchAdminProductByIdOrSlug(parsed.slug);
+        const img =
+          prod.images?.find((i: any) => i.isPrimary)?.imageUrl ||
+          prod.images?.[0]?.imageUrl ||
+          (prod as any).primaryImageUrl ||
+          "";
+        const entry = {
+          image: resolveProductImageUrl(img),
+          name: prod.name || parsed.productName || "Product",
+        };
+        setProductCache((prev) => ({ ...prev, [parsed.slug!]: entry }));
+        setModalProduct(entry);
+      } catch (err) {
+        console.warn("Could not load product for inquiry slug:", parsed.slug, err);
+        setModalProduct(null);
+      } finally {
+        setLoadingModalProduct(false);
+      }
+    } else {
+      setModalProduct(null);
+    }
   };
 
   const getCleanPhone = (phone: string) => {
@@ -246,6 +402,7 @@ export default function InquiriesPage() {
             className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono text-slate-300 font-medium focus:outline-none focus:ring-1 focus:ring-white w-full sm:w-auto"
           >
             <option value="All">All Inquiry Types</option>
+            <option value="Restock Waitlist">Restock Waitlist (Sold Out)</option>
             <option value="Sizing & Fit Advice">Sizing &amp; Fit Advice</option>
             <option value="VIP Early Allocation / Drop 02">VIP Early Allocation / Drop 02</option>
             <option value="Order Tracking & Courier Status">Order Tracking</option>
@@ -332,24 +489,87 @@ export default function InquiriesPage() {
 
                     {/* Type Badge */}
                     <td className="py-3.5 px-4">
-                      <span className="inline-block px-2 py-0.5 bg-slate-900 text-slate-300 font-mono text-[10px] font-semibold rounded border border-slate-800 whitespace-nowrap">
-                        {inquiry.inquiryType}
-                      </span>
-                    </td>
-
-                    {/* Message Preview */}
-                    <td className="py-3.5 px-4 max-w-xs">
-                      <p 
-                        onClick={() => openDetails(inquiry)}
-                        className="line-clamp-2 text-slate-300 cursor-pointer hover:text-white hover:underline"
-                      >
-                        {inquiry.message || "No message content"}
-                      </p>
-                      {inquiry.adminNotes && (
-                        <span className="inline-block mt-1 font-mono text-[10px] text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800">
-                          Note: {inquiry.adminNotes}
+                      {inquiry.inquiryType === "Restock Waitlist" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-950/70 text-amber-300 font-mono text-[10px] font-bold rounded border border-amber-800 whitespace-nowrap">
+                          <Bell className="w-2.5 h-2.5 text-amber-400" />
+                          <span>Restock Waitlist</span>
+                        </span>
+                      ) : (
+                        <span className="inline-block px-2 py-0.5 bg-slate-900 text-slate-300 font-mono text-[10px] font-semibold rounded border border-slate-800 whitespace-nowrap">
+                          {inquiry.inquiryType}
                         </span>
                       )}
+                    </td>
+
+                    {/* Message / Request Spec Preview */}
+                    <td className="py-3.5 px-4 max-w-sm">
+                      {(() => {
+                        const parsed = parseInquiryDetails(inquiry.message);
+                        const rowImg =
+                          resolveProductImageUrl(parsed.imageUrl) ||
+                          (parsed.slug ? productCache[parsed.slug]?.image : "");
+                        const rowName =
+                          parsed.productName ||
+                          (parsed.slug ? productCache[parsed.slug]?.name : "") ||
+                          "Product";
+
+                        if (parsed.isWaitlist) {
+                          return (
+                            <div
+                              onClick={() => openDetails(inquiry)}
+                              className="cursor-pointer group flex items-start gap-3 p-1.5 rounded-xl hover:bg-slate-800/60 transition-colors"
+                            >
+                              <div className="w-10 h-12 rounded-lg bg-slate-900 border border-slate-750 overflow-hidden shrink-0 flex items-center justify-center">
+                                {rowImg ? (
+                                  <img
+                                    src={rowImg}
+                                    alt={rowName}
+                                    className="w-full h-full object-cover object-top"
+                                  />
+                                ) : (
+                                  <Package className="w-4 h-4 text-slate-600" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0 space-y-1">
+                                <p className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors truncate">
+                                  {rowName}
+                                </p>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="px-1.5 py-0.5 rounded bg-black/80 border border-amber-600/40 text-amber-300 font-mono text-[10px] font-bold">
+                                    SIZE: {parsed.size || "M"}
+                                  </span>
+                                  {parsed.color && (
+                                    <span className="px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400 font-mono text-[9px]">
+                                      {parsed.color}
+                                    </span>
+                                  )}
+                                </div>
+                                {inquiry.adminNotes && (
+                                  <span className="inline-block font-mono text-[10px] text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800">
+                                    Note: {inquiry.adminNotes}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div>
+                            <p 
+                              onClick={() => openDetails(inquiry)}
+                              className="line-clamp-2 text-slate-300 cursor-pointer hover:text-white hover:underline text-xs"
+                            >
+                              {inquiry.message || "No message content"}
+                            </p>
+                            {inquiry.adminNotes && (
+                              <span className="inline-block mt-1 font-mono text-[10px] text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800">
+                                Note: {inquiry.adminNotes}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Status Dropdown */}
@@ -404,7 +624,7 @@ export default function InquiriesPage() {
                         {inquiry.email && (
                           <a
                             href={`mailto:${inquiry.email}?subject=${encodeURIComponent(
-                              `CALVIZ Atelier // Re: ${inquiry.inquiryType}`
+                              `CALVIZ Support // Re: ${inquiry.inquiryType}`
                             )}`}
                             title="Send Email"
                             className="p-1.5 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 rounded-md transition-colors"
@@ -440,33 +660,21 @@ export default function InquiriesPage() {
         </div>
 
         {/* Pagination Footer */}
-        {data && data.totalCount > data.pageSize && (
-          <div className="p-4 border-t border-slate-800 flex items-center justify-between font-mono text-xs text-slate-400 bg-slate-900/50">
-            <span>
-              Showing {(data.page - 1) * data.pageSize + 1}–
-              {Math.min(data.page * data.pageSize, data.totalCount)} of {data.totalCount} requests
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={data.page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="font-mono text-xs bg-[#0e1420] border-slate-700 text-slate-200"
-              >
-                PREV
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={data.page * data.pageSize >= data.totalCount}
-                onClick={() => setPage((p) => p + 1)}
-                className="font-mono text-xs bg-[#0e1420] border-slate-700 text-slate-200"
-              >
-                NEXT
-              </Button>
-            </div>
-          </div>
+        {data && (
+          <DataTablePagination
+            pageNumber={data.page}
+            pageSize={data.pageSize}
+            totalCount={data.totalCount}
+            totalPages={Math.ceil(data.totalCount / data.pageSize) || 1}
+            onPageChange={(newPage) => setPage(newPage)}
+            onPageSizeChange={(newPageSize) => {
+              setPageSize(newPageSize);
+              setPage(1);
+            }}
+            pageSizeOptions={[10, 20, 50]}
+            itemLabel="customer requests"
+            loading={loading}
+          />
         )}
       </div>
 
@@ -521,6 +729,111 @@ export default function InquiriesPage() {
               </div>
             </div>
 
+            {/* If Restock Waitlist: Product & Size Specification Card */}
+            {(() => {
+              const parsedModal = selectedInquiry ? parseInquiryDetails(selectedInquiry.message) : null;
+              if (!parsedModal?.isWaitlist) return null;
+
+              const modalImage =
+                resolveProductImageUrl(parsedModal.imageUrl) ||
+                modalProduct?.image ||
+                (parsedModal.slug ? productCache[parsedModal.slug]?.image : "") ||
+                "";
+              const modalProductName =
+                parsedModal.productName ||
+                modalProduct?.name ||
+                (parsedModal.slug ? productCache[parsedModal.slug]?.name : "") ||
+                "Requested Product";
+
+              return (
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold">
+                    Requested Garment &amp; Chosen Size:
+                  </label>
+                  <div className="p-4 bg-gradient-to-r from-slate-900/95 via-slate-900 to-slate-950 rounded-2xl border border-amber-500/30 relative overflow-hidden shadow-xl">
+                    <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+                      <div className="flex items-center gap-1.5 text-amber-400 font-mono text-[10px] uppercase font-bold tracking-wider">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>RESTOCK WAITLIST ITEM SPECIFICATION</span>
+                      </div>
+                      {parsedModal.slug && (
+                        <a
+                          href={`http://localhost:3000/products/${parsedModal.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-mono text-[10px] text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+                        >
+                          <span>Storefront</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                      {/* Product Image Thumbnail */}
+                      <div className="w-20 h-24 sm:w-24 sm:h-28 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shrink-0 relative flex items-center justify-center shadow-md">
+                        {modalImage ? (
+                          <img
+                            src={modalImage}
+                            alt={modalProductName}
+                            className="w-full h-full object-cover object-top"
+                          />
+                        ) : loadingModalProduct ? (
+                          <div className="flex flex-col items-center justify-center gap-1.5 text-slate-500 text-[10px] font-mono p-2 text-center">
+                            <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
+                            <span>Loading Image...</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-slate-600 gap-1">
+                            <Package className="w-7 h-7" />
+                            <span className="text-[9px] font-mono uppercase">No Image</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Product Title, SKU, and Selected Attributes */}
+                      <div className="flex-1 min-w-0 space-y-2.5">
+                        <div>
+                          <h4 className="text-sm sm:text-base font-bold text-white uppercase tracking-tight font-mono line-clamp-2">
+                            {modalProductName}
+                          </h4>
+                          {parsedModal.slug && (
+                            <p className="text-[10px] font-mono text-slate-400 truncate mt-0.5">
+                              SKU / Slug: <span className="text-slate-300">{parsedModal.slug}</span>
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                          {/* Highlighted Size Pill */}
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black border border-amber-500/50 shadow-xs">
+                            <span className="text-[10px] font-mono text-amber-400 uppercase font-bold tracking-wider">
+                              SELECTED SIZE:
+                            </span>
+                            <span className="text-xs sm:text-sm font-mono font-black text-amber-300 px-2.5 py-0.5 bg-amber-500/20 rounded border border-amber-500/30">
+                              {parsedModal.size || "M"}
+                            </span>
+                          </div>
+
+                          {/* Colorway Pill */}
+                          {parsedModal.color && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/60 border border-slate-700">
+                              <span className="text-[10px] font-mono text-slate-400 uppercase font-semibold">
+                                COLOR:
+                              </span>
+                              <span className="text-xs font-mono font-bold text-slate-200">
+                                {parsedModal.color}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Message Content */}
             <div>
               <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold mb-1.5">
@@ -565,19 +878,25 @@ export default function InquiriesPage() {
 
             {/* Modal Actions */}
             <div className="flex items-center justify-between pt-3">
-              {selectedInquiry.phone && (
-                <a
-                  href={`https://wa.me/${getCleanPhone(selectedInquiry.phone)}?text=${encodeURIComponent(
-                    `Hello ${selectedInquiry.name}, this is CALVIZ Client Desk regarding your inquiry.`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-bold uppercase rounded-xl flex items-center gap-1.5 shadow-sm"
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>WhatsApp</span>
-                </a>
-              )}
+              {selectedInquiry.phone && (() => {
+                const parsed = parseInquiryDetails(selectedInquiry.message);
+                const prodName = parsed.productName || modalProduct?.name || "Product";
+                const waText = parsed.isWaitlist
+                  ? `Hello ${selectedInquiry.name}, this is CALVIZ Client Desk regarding your restock waitlist request for "${prodName}" (Size: ${parsed.size || "Selected Size"}). We have an update on restock availability!`
+                  : `Hello ${selectedInquiry.name}, this is CALVIZ Client Desk regarding your inquiry.`;
+
+                return (
+                  <a
+                    href={`https://wa.me/${getCleanPhone(selectedInquiry.phone)}?text=${encodeURIComponent(waText)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-bold uppercase rounded-xl flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>WhatsApp</span>
+                  </a>
+                );
+              })()}
 
               <div className="flex items-center gap-2 ml-auto">
                 <Button

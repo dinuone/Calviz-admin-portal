@@ -90,6 +90,8 @@ export default function NewProductPage() {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [description, setDescription] = useState("");
   const [basePrice, setBasePrice] = useState<number | "">("");
+  const [isOnSale, setIsOnSale] = useState(false);
+  const [salePrice, setSalePrice] = useState<number | "">("");
   const [gsm, setGsm] = useState<number | "">("");
   const [lowStockThreshold, setLowStockThreshold] = useState<number | "">(5);
   const [isFeatured, setIsFeatured] = useState(false);
@@ -359,6 +361,17 @@ export default function NewProductPage() {
       return;
     }
 
+    if (isOnSale) {
+      if (!salePrice || Number(salePrice) <= 0) {
+        setError("Please enter a valid sale price greater than 0.");
+        return;
+      }
+      if (Number(salePrice) >= Number(basePrice)) {
+        setError("Sale price must be lower than the base retail price.");
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
       setError(null);
@@ -412,6 +425,8 @@ export default function NewProductPage() {
         slug: resolvedSlug,
         description: description.trim(),
         basePrice: Number(basePrice),
+        isOnSale,
+        salePrice: isOnSale && salePrice ? Number(salePrice) : null,
         gsm: gsm ? Number(gsm) : 240,
         lowStockThreshold: lowStockThreshold !== "" ? Number(lowStockThreshold) : 5,
         isFeatured,
@@ -603,6 +618,73 @@ export default function NewProductPage() {
                   placeholder="e.g. 6500"
                   className="font-mono"
                 />
+              </div>
+
+              {/* Set for Sale Option & Price */}
+              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/70 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="onSaleToggle" className="text-sm font-bold text-white cursor-pointer">
+                        Set for Sale
+                      </Label>
+                      <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+                        Discount Option
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      Enable to put this product on sale with a special discounted price.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      id="onSaleToggle"
+                      type="checkbox"
+                      checked={isOnSale}
+                      onChange={(e) => {
+                        setIsOnSale(e.target.checked);
+                        if (!e.target.checked) setSalePrice("");
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                  </label>
+                </div>
+
+                {isOnSale && (
+                  <div className="pt-3 border-t border-slate-800 space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="salePrice" className="text-xs font-semibold text-slate-200">
+                          Sale Price (LKR) *
+                        </Label>
+                        {basePrice && salePrice && Number(salePrice) > 0 && Number(salePrice) < Number(basePrice) && (
+                          <span className="text-[11px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                            Save LKR {(Number(basePrice) - Number(salePrice)).toLocaleString()} (-{Math.round(((Number(basePrice) - Number(salePrice)) / Number(basePrice)) * 100)}%)
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        id="salePrice"
+                        type="number"
+                        min="0"
+                        required={isOnSale}
+                        value={salePrice}
+                        onChange={(e) =>
+                          setSalePrice(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                        placeholder="e.g. 5200"
+                        className="font-mono border-red-500/40 focus:border-red-500"
+                      />
+                    </div>
+
+                    {basePrice && salePrice && Number(salePrice) >= Number(basePrice) && (
+                      <p className="text-[11px] text-amber-400 font-mono">
+                        ⚠️ Sale price must be lower than base price (LKR {Number(basePrice).toLocaleString()}).
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

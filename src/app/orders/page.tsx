@@ -39,6 +39,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { DataTablePagination } from "@/components/DataTablePagination";
 
 export default function OrdersPage() {
   const searchParams = useSearchParams();
@@ -50,6 +51,12 @@ export default function OrdersPage() {
   const [paymentFilter, setPaymentFilter] = useState<string>(
     searchParams.get("filter") === "unverified" ? "Unverified" : "All"
   );
+
+  // Pagination state
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Drawer state
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(
@@ -65,15 +72,22 @@ export default function OrdersPage() {
   const [editOrderStatus, setEditOrderStatus] = useState<OrderStatus>("Placed");
   const [editPaymentStatus, setEditPaymentStatus] = useState<PaymentStatus>("Pending");
 
-  const loadOrders = async () => {
+  const loadOrders = async (page = pageNumber, size = pageSize) => {
     try {
       setLoading(true);
       const res = await fetchAdminOrders({
-        search: searchQuery || undefined,
+        search: searchQuery.trim() || undefined,
         orderStatus: statusFilter !== "All" ? (statusFilter as OrderStatus) : undefined,
+        paymentStatus: paymentFilter !== "All" ? (paymentFilter as PaymentStatus) : undefined,
+        pageNumber: page,
+        pageSize: size,
       });
 
       setOrders(res.items || []);
+      setTotalCount(res.totalCount);
+      setTotalPages(res.totalPages);
+      setPageNumber(res.pageNumber);
+      setPageSize(size);
     } catch (err) {
       console.error("Failed to load orders:", err);
     } finally {
@@ -82,8 +96,8 @@ export default function OrdersPage() {
   };
 
   useEffect(() => {
-    loadOrders();
-  }, [statusFilter]);
+    loadOrders(pageNumber, pageSize);
+  }, [pageNumber, pageSize, statusFilter, paymentFilter]);
 
   // Load single order for sheet
   useEffect(() => {
@@ -238,7 +252,7 @@ export default function OrdersPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={loadOrders}
+          onClick={() => loadOrders()}
           disabled={loading}
         >
           <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
@@ -267,7 +281,10 @@ export default function OrdersPage() {
                 key={st}
                 variant={statusFilter === st ? "default" : "ghost"}
                 size="sm"
-                onClick={() => setStatusFilter(st)}
+                onClick={() => {
+                  setStatusFilter(st);
+                  setPageNumber(1);
+                }}
                 className="h-7 text-xs"
               >
                 {st}
@@ -278,7 +295,10 @@ export default function OrdersPage() {
           {/* Payment Filter Dropdown */}
           <select
             value={paymentFilter}
-            onChange={(e) => setPaymentFilter(e.target.value)}
+            onChange={(e) => {
+              setPaymentFilter(e.target.value);
+              setPageNumber(1);
+            }}
             className="h-9 px-3 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-slate-500"
           >
             <option value="All">All Payments</option>
@@ -382,6 +402,20 @@ export default function OrdersPage() {
             </TableBody>
           </Table>
         )}
+        <DataTablePagination
+          pageNumber={pageNumber}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          totalPages={totalPages}
+          onPageChange={(newPage) => setPageNumber(newPage)}
+          onPageSizeChange={(newPageSize) => {
+            setPageSize(newPageSize);
+            setPageNumber(1);
+          }}
+          pageSizeOptions={[10, 15, 25, 50, 100]}
+          itemLabel="orders"
+          loading={loading}
+        />
       </Card>
 
       {/* Shadcn Sheet Slide-Over Drawer */}

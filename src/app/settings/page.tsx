@@ -47,8 +47,8 @@ export default function SettingsPage() {
   // Site Mode Settings State
   const [siteMode, setSiteMode] = useState<SiteModeSettings>({
     mode: "LIVE",
-    headline: "ATELIER ARCHIVAL UPGRADE IN PROGRESS",
-    message: "CALVIZ atelier is undergoing scheduled system enhancements. Order fulfillment desks remain active via WhatsApp concierge.",
+    headline: "SITE MAINTENANCE IN PROGRESS",
+    message: "We are currently updating our website. Order fulfillment and inquiries remain active via WhatsApp.",
     enableVipSignup: true,
     adminBypassKey: "calviz-preview-2025",
     supportPhone: "+94 70 490 1027",

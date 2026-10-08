@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { DataTablePagination } from "@/components/DataTablePagination";
 
 const DISTRICTS = [
   "Colombo",
@@ -90,6 +91,15 @@ export default function CitiesPage() {
   const [selectedDistrict, setSelectedDistrict] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
+  // Pagination state
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const [inactiveCount, setInactiveCount] = useState(0);
+  const [defaultDeliveryFee, setDefaultDeliveryFee] = useState<number | null>(null);
+
   // Multi-select for bulk actions
   const [selectedCityIds, setSelectedCityIds] = useState<string[]>([]);
 
@@ -129,17 +139,33 @@ export default function CitiesPage() {
   const [deletingCity, setDeletingCity] = useState<DeliveryCity | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const loadCities = async () => {
+  const loadCities = async (page = pageNumber, size = pageSize) => {
     try {
       setLoading(true);
       setError(null);
       const [citiesData, estimatesData] = await Promise.allSettled([
-        fetchAdminCities(),
+        fetchAdminCities({
+          search: searchQuery.trim() || undefined,
+          district: selectedDistrict !== "all" ? selectedDistrict : undefined,
+          status: statusFilter !== "all" ? statusFilter : undefined,
+          pageNumber: page,
+          pageSize: size,
+        }),
         fetchAdminDeliveryEstimates(),
       ]);
 
       if (citiesData.status === "fulfilled") {
-        setCities(citiesData.value);
+        const res = citiesData.value;
+        setCities(res.items || []);
+        setTotalCount(res.totalCount);
+        setTotalPages(res.totalPages);
+        setPageNumber(res.pageNumber);
+        setPageSize(res.pageSize);
+        setActiveCount(res.activeCount);
+        setInactiveCount(res.inactiveCount);
+        if (res.defaultDeliveryFee !== undefined && res.defaultDeliveryFee !== null) {
+          setDefaultDeliveryFee(res.defaultDeliveryFee);
+        }
       } else {
         const msg = citiesData.reason instanceof Error ? citiesData.reason.message : "Failed to load delivery cities";
         setError(msg);
@@ -157,10 +183,6 @@ export default function CitiesPage() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadCities();
-  }, []);
 
   const handleSaveDeliveryEstimates = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,24 +211,20 @@ export default function CitiesPage() {
     }
   };
 
-  const filteredCities = useMemo(() => {
-    return cities.filter((c) => {
-      const matchesSearch =
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.district.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.postalCode.includes(searchQuery);
+  useEffect(() => {
+    loadCities(pageNumber, pageSize);
+  }, [pageNumber, pageSize, selectedDistrict, statusFilter]);
 
-      const matchesDistrict =
-        selectedDistrict === "all" || c.district.toLowerCase() === selectedDistrict.toLowerCase();
+  // Debounced search to reset to page 1
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setPageNumber(1);
+      loadCities(1, pageSize);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" && c.isActive) ||
-        (statusFilter === "inactive" && !c.isActive);
-
-      return matchesSearch && matchesDistrict && matchesStatus;
-    });
-  }, [cities, searchQuery, selectedDistrict, statusFilter]);
+  const filteredCities = cities;
 
   // Handle select all checkbox in table
   const isAllFilteredSelected =
@@ -439,7 +457,7 @@ export default function CitiesPage() {
               Delivery Cities & Shipping Fees
             </h1>
             <Badge variant="secondary" className="font-mono">
-              {cities.length} Cities
+              {totalCount} Cities
             </Badge>
           </div>
           <p className="text-sm text-slate-400 mt-1">
@@ -451,7 +469,7 @@ export default function CitiesPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={loadCities}
+            onClick={() => loadCities()}
             className="border-slate-800 text-slate-300 hover:text-white font-mono text-xs"
           >
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
@@ -519,7 +537,7 @@ export default function CitiesPage() {
               Active Delivery Zones
             </span>
             <span className="text-2xl font-black text-white font-mono mt-0.5 block">
-              {cities.filter((c) => c.isActive).length} / {cities.length}
+              {activeCount} / {activeCount + inactiveCount || totalCount}
             </span>
           </div>
           <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300">
@@ -556,9 +574,11 @@ export default function CitiesPage() {
               Global / Standard Fee
             </span>
             <span className="text-2xl font-black text-emerald-400 font-mono mt-0.5 block">
-              {cities.length > 0 && cities[0]?.deliveryFee !== null && cities[0]?.deliveryFee !== undefined
-                ? `Rs. ${cities[0].deliveryFee.toLocaleString()}`
-                : "Rs. 350 - 425"}
+              {defaultDeliveryFee !== null && defaultDeliveryFee !== undefined
+                ? `Rs. ${defaultDeliveryFee.toLocaleString()}`
+                : (cities.length > 0 && cities[0]?.deliveryFee !== null && cities[0]?.deliveryFee !== undefined
+                    ? `Rs. ${cities[0].deliveryFee.toLocaleString()}`
+                    : "Rs. 300")}
             </span>
           </div>
           <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300">
@@ -599,7 +619,10 @@ export default function CitiesPage() {
 
           <select
             value={selectedDistrict}
-            onChange={(e) => setSelectedDistrict(e.target.value)}
+            onChange={(e) => {
+              setSelectedDistrict(e.target.value);
+              setPageNumber(1);
+            }}
             className="px-3 py-2 bg-[#0e1420] border border-slate-800 rounded-lg text-xs text-slate-300 focus:outline-hidden"
           >
             <option value="all">All Districts (25)</option>
@@ -614,28 +637,37 @@ export default function CitiesPage() {
         <div className="flex items-center gap-2 w-full md:w-auto">
           <div className="flex bg-[#0e1420] p-0.5 rounded-lg border border-slate-800 text-xs">
             <button
-              onClick={() => setStatusFilter("all")}
+              onClick={() => {
+                setStatusFilter("all");
+                setPageNumber(1);
+              }}
               className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
                 statusFilter === "all" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"
               }`}
             >
-              All ({cities.length})
+              All ({activeCount + inactiveCount || totalCount})
             </button>
             <button
-              onClick={() => setStatusFilter("active")}
+              onClick={() => {
+                setStatusFilter("active");
+                setPageNumber(1);
+              }}
               className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
                 statusFilter === "active" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"
               }`}
             >
-              Active ({cities.filter((c) => c.isActive).length})
+              Active ({activeCount})
             </button>
             <button
-              onClick={() => setStatusFilter("inactive")}
+              onClick={() => {
+                setStatusFilter("inactive");
+                setPageNumber(1);
+              }}
               className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
                 statusFilter === "inactive" ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"
               }`}
             >
-              Inactive ({cities.filter((c) => !c.isActive).length})
+              Inactive ({inactiveCount})
             </button>
           </div>
         </div>
@@ -872,6 +904,20 @@ export default function CitiesPage() {
               </tbody>
             </table>
           </div>
+          <DataTablePagination
+            pageNumber={pageNumber}
+            pageSize={pageSize}
+            totalCount={totalCount}
+            totalPages={totalPages}
+            onPageChange={(newPage) => setPageNumber(newPage)}
+            onPageSizeChange={(newPageSize) => {
+              setPageSize(newPageSize);
+              setPageNumber(1);
+            }}
+            pageSizeOptions={[10, 20, 50, 100]}
+            itemLabel="cities"
+            loading={loading}
+          />
         </div>
       )}
 
