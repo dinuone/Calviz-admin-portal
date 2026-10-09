@@ -73,15 +73,19 @@ export async function optimizeImageForUpload(
               return resolve(file);
             }
 
-            // Generate clean filename with .webp extension
+            // Determine real extension matching the blob MIME type returned by the browser (e.g. Safari canvas may produce PNG)
+            const mime = blob.type || "image/webp";
+            const ext = mime === "image/png" ? ".png" : mime === "image/jpeg" ? ".jpg" : ".webp";
+
+            // Generate clean filename with correctly matched extension
             const originalNameWithoutExt = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
-            const optimizedFile = new File([blob], `${originalNameWithoutExt}.webp`, {
-              type: "image/webp",
+            const optimizedFile = new File([blob], `${originalNameWithoutExt}${ext}`, {
+              type: mime,
               lastModified: Date.now(),
             });
 
             // If optimized file is somehow larger than original, keep original
-            if (optimizedFile.size >= file.size && file.type === "image/webp") {
+            if (optimizedFile.size >= file.size && file.type === mime) {
               return resolve(file);
             }
 

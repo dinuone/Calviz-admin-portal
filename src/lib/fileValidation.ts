@@ -12,6 +12,7 @@ export interface FileValidationResult {
   isValid: boolean;
   error?: string;
   detectedType?: string;
+  detectedExt?: string;
 }
 
 /**
@@ -47,10 +48,12 @@ export async function validateFileMagicBytes(
     const bytes = new Uint8Array(buffer);
 
     let detected: string | null = null;
+    let detectedExt: string | null = null;
 
-    // JPEG: FF D8 FF
-    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    // JPEG: FF D8 (SOI marker)
+    if (bytes[0] === 0xff && bytes[1] === 0xd8) {
       detected = 'image/jpeg';
+      detectedExt = '.jpg';
     }
     // PNG: 89 50 4E 47 0D 0A 1A 0A
     else if (
@@ -64,6 +67,7 @@ export async function validateFileMagicBytes(
       bytes[7] === 0x0a
     ) {
       detected = 'image/png';
+      detectedExt = '.png';
     }
     // GIF: 47 49 46 38 (GIF8)
     else if (
@@ -73,6 +77,7 @@ export async function validateFileMagicBytes(
       bytes[3] === 0x38
     ) {
       detected = 'image/gif';
+      detectedExt = '.gif';
     }
     // WEBP: 52 49 46 46 .... 57 45 42 50 (RIFF .... WEBP)
     else if (
@@ -86,6 +91,19 @@ export async function validateFileMagicBytes(
       bytes[11] === 0x50
     ) {
       detected = 'image/webp';
+      detectedExt = '.webp';
+    }
+    // AVIF: ftypavif or ftypavis or ftypmif1
+    else if (
+      bytes[4] === 0x66 &&
+      bytes[5] === 0x74 &&
+      bytes[6] === 0x79 &&
+      bytes[7] === 0x70 &&
+      ((bytes[8] === 0x61 && bytes[9] === 0x76 && bytes[10] === 0x69 && (bytes[11] === 0x66 || bytes[11] === 0x73)) ||
+       (bytes[8] === 0x6d && bytes[9] === 0x69 && bytes[10] === 0x66 && bytes[11] === 0x31))
+    ) {
+      detected = 'image/avif';
+      detectedExt = '.avif';
     }
     // PDF: 25 50 44 46 (%PDF)
     else if (
@@ -95,13 +113,14 @@ export async function validateFileMagicBytes(
       bytes[3] === 0x46
     ) {
       detected = 'application/pdf';
+      detectedExt = '.pdf';
     }
 
     if (!detected) {
       return {
         isValid: false,
         error:
-          'Security check failed: Invalid file header signature. Only authentic JPEG, PNG, WEBP' +
+          'Security check failed: Invalid file header signature. Only authentic JPEG, PNG, WEBP, AVIF' +
           (allowPdf ? ' or PDF' : '') +
           ' files are permitted.',
       };
@@ -114,7 +133,7 @@ export async function validateFileMagicBytes(
       };
     }
 
-    return { isValid: true, detectedType: detected };
+    return { isValid: true, detectedType: detected, detectedExt: detectedExt || undefined };
   } catch (err: any) {
     return {
       isValid: false,

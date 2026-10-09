@@ -359,18 +359,35 @@ export async function deleteAdminProduct(id: string): Promise<boolean> {
   return true;
 }
 
-export async function uploadAdminProductImage(file: File): Promise<{ imageUrl: string; relativePath: string }> {
-  // Automatically compress & convert to lightweight WebP
-  const optimizedFile = await optimizeImageForUpload(file, { maxWidth: 1600, maxHeight: 2000, quality: 0.85 });
-
-  // Validate magic bytes before upload
+async function prepareImageFileForUpload(
+  file: File,
+  options?: { maxWidth?: number; maxHeight?: number; quality?: number }
+): Promise<File> {
+  const optimizedFile = await optimizeImageForUpload(file, options);
   const validation = await validateFileMagicBytes(optimizedFile, { allowPdf: false, maxSizeMb: 15 });
   if (!validation.isValid) {
     throw new Error(validation.error || "File security check failed.");
   }
 
+  let uploadFile = optimizedFile;
+  if (validation.detectedExt) {
+    const currentExt = uploadFile.name.substring(uploadFile.name.lastIndexOf(".")).toLowerCase();
+    if (currentExt !== validation.detectedExt && !(currentExt === ".jpeg" && validation.detectedExt === ".jpg")) {
+      const baseName = uploadFile.name.substring(0, uploadFile.name.lastIndexOf(".")) || uploadFile.name;
+      uploadFile = new File([uploadFile], `${baseName}${validation.detectedExt}`, {
+        type: validation.detectedType || uploadFile.type,
+        lastModified: uploadFile.lastModified,
+      });
+    }
+  }
+  return uploadFile;
+}
+
+export async function uploadAdminProductImage(file: File): Promise<{ imageUrl: string; relativePath: string }> {
+  const uploadFile = await prepareImageFileForUpload(file, { maxWidth: 1600, maxHeight: 2000, quality: 0.85 });
+
   const formData = new FormData();
-  formData.append("file", optimizedFile);
+  formData.append("file", uploadFile);
 
   // Try dedicated /upload endpoint first
   let res = await fetch(`${API_BASE_URL}/upload`, {
@@ -940,9 +957,9 @@ export async function deleteAdminLookbook(id: string): Promise<boolean> {
 }
 
 export async function uploadLookbookPhoto(file: File): Promise<{ imageUrl: string; relativePath: string }> {
-  const optimizedFile = await optimizeImageForUpload(file, { maxWidth: 1920, maxHeight: 1920, quality: 0.85 });
+  const uploadFile = await prepareImageFileForUpload(file, { maxWidth: 1920, maxHeight: 1920, quality: 0.85 });
   const formData = new FormData();
-  formData.append("file", optimizedFile);
+  formData.append("file", uploadFile);
 
   const res = await fetch(`${API_BASE_URL}/lookbooks/upload-photo`, {
     method: "POST",
@@ -998,9 +1015,9 @@ export async function updateAdminHeroSection(
 }
 
 export async function uploadHeroSlideImage(file: File): Promise<{ imageUrl: string; relativePath: string }> {
-  const optimizedFile = await optimizeImageForUpload(file, { maxWidth: 2048, maxHeight: 1200, quality: 0.85 });
+  const uploadFile = await prepareImageFileForUpload(file, { maxWidth: 2048, maxHeight: 1200, quality: 0.85 });
   const formData = new FormData();
-  formData.append("file", optimizedFile);
+  formData.append("file", uploadFile);
 
   const res = await fetch(`${API_BASE_URL}/herosection/upload-image`, {
     method: "POST",
@@ -1056,9 +1073,9 @@ export async function updateAdminOffersSection(
 }
 
 export async function uploadOfferImage(file: File): Promise<{ imageUrl: string; relativePath: string }> {
-  const optimizedFile = await optimizeImageForUpload(file, { maxWidth: 1600, maxHeight: 1600, quality: 0.85 });
+  const uploadFile = await prepareImageFileForUpload(file, { maxWidth: 1600, maxHeight: 1600, quality: 0.85 });
   const formData = new FormData();
-  formData.append("file", optimizedFile);
+  formData.append("file", uploadFile);
 
   const res = await fetch(`${API_BASE_URL}/offerssection/upload-image`, {
     method: "POST",

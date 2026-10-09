@@ -448,7 +448,9 @@ export default function NewProductPage() {
       if (err instanceof Error) {
         try {
           const parsed = JSON.parse(err.message);
-          if (parsed.errors) {
+          if (parsed.detail) {
+            msg = parsed.detail;
+          } else if (parsed.errors) {
             msg = Object.values(parsed.errors).flat().join(" ");
           } else if (parsed.title) {
             msg = parsed.title;
